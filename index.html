@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jersey+10&display=swap" rel="stylesheet">
+    <title>Pie-Shirts</title>
+    <style>
+        body {
+            text-align: center;
+            background-color: #87CEEB;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            font-family: "Jersey 10", serif;
+            margin: 0; /* Tarayıcıdaki varsayılan margin'i kaldır */
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column; /* Mobilde dikey düzen */
+            align-items: center;
+        }
+
+        canvas {
+            background-color: #fff;
+            border: 2px solid black;
+            max-width: 100%; /* Canvas'ın genişliğini ekran boyutuna göre ayarla */
+            height: auto; /* Yüksekliği oranlı tut */
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            margin-top: 20px; /* Yüksekliğe yer aç */
+        }
+
+        .controls button {
+            width: 100px; /* Butonlar için daha küçük boyut */
+            height: 100px;
+            margin: 10px;
+            font-size: 20px;
+            background-color: #fff;
+            border: 2px solid black;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .controls button:active {
+            background-color: #ddd;
+        }
+
+        .progress-bars {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 90%; /* Genişliği yüzde ile ayarladık */
+            margin-bottom: 10px;
+        }
+
+        .bar-container {
+            width: 100%;
+            background-color: #fff;
+            border: 2px solid black;
+            overflow: hidden;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .bar {
+            height: 30px;
+            width: 0%;
+            text-align: right;
+            padding-right: 5px;
+            line-height: 20px;
+            color: white;
+            border-radius: 0;
+        }
+
+        .muscle-bar {
+            width: 10%;
+            background-color: red;
+        }
+
+        .knowledge-bar {
+            width: 10%;
+            background-color: blue;
+        }
+
+        .carrot-image, .book-image, .hunter-image {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px; /* Görsellerin boyutlarını daha uygun hale getirdik */
+            height: 15px;
+            image-rendering: pixelated;
+        }
+
+        /* Popup stil düzenlemesi */
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 18px; /* Yazı boyutunu mobilde daha uygun yap */
+            max-width: 90%; /* Popup'ın genişliğini mobil uyumlu yap */
+        }
+
+        .popup img {
+            width: 80px; /* Resmin boyutunu mobil uyumlu hale getirdik */
+            height: auto;
+        }
+
+        /* Media Queries: Telefon için uyumlu hale getirme */
+        @media (max-width: 600px) {
+            .game-container {
+                flex-direction: column; /* Dikey düzeni aktif et */
+            }
+
+            .controls button {
+                width: 80px; /* Mobilde butonları biraz daha küçült */
+                height: 80px;
+                font-size: 18px; /* Yazı boyutunu küçült */
+            }
+
+            .progress-bars {
+                width: 100%; /* Progress bar'ların genişliğini tam ekran yap */
+            }
+
+            .bar-container {
+                margin-bottom: 8px; /* Barlar arasındaki mesafeyi biraz daha küçült */
+            }
+
+            .popup {
+                max-width: 95%; /* Popup'ın genişliğini biraz daha küçük tut */
+                font-size: 16px; /* Yazı boyutunu küçült */
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Modern fizik VS Eski Çağ Fiziği</h1>
+    <div class="progress-bars">
+        <div class="bar-container">
+            <img src="images/muscle.png" class="carrot-image" alt="Kas">
+            <div class="bar muscle-bar" id="muscleBar">0</div>
+        </div>
+        <div class="bar-container">
+            <img src="images/book.png" class="book-image" alt="Bilgi">
+            <div class="bar knowledge-bar" id="knowledgeBar">0</div>
+        </div>
+    </div>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+        <div class="controls">
+            <button onclick="moveUp()">▲</button>
+            <button onclick="moveDown()">▼</button>
+        </div>
+    </div>
+    <p id="message" style="font-size: 20px; color: green;"></p>
+    
+    <!-- Popup -->
+    <div class="popup" id="popup">
+        <img id="popupImage" src="" alt="">
+        <p id="popupMessage"></p>
+        <button class="close-btn" onclick="closePopup()">Kapat</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const message = document.getElementById("message");
+        const muscleBar = document.getElementById("muscleBar");
+        const knowledgeBar = document.getElementById("knowledgeBar");
+        const popup = document.getElementById("popup");
+        const popupImage = document.getElementById("popupImage");
+        const popupMessage = document.getElementById("popupMessage");
+
+        const bunnyImage = new Image();
+        bunnyImage.src = 'images/bunny.png';
+
+        const hunterImage = new Image();
+        hunterImage.src = 'images/hunter.png';
+
+        const carrotImage = new Image();
+        carrotImage.src = 'images/muscle.png';
+
+        const bookImage = new Image();
+        bookImage.src = 'images/book.png';
+
+        let bunny = { x: 50, y: 200, width: 40, height: 40 };
+        let items = [];
+        let hunters = [];
+        let muscleScore = 0;
+        let knowledgeScore = 0;
+        let gameOver = false;
+
+        function getRandomPosition() {
+            const positions = [100, 200, 300];
+            return positions[Math.floor(Math.random() * positions.length)];
+        }
+
+        function spawnItems() {
+            items = [];
+            let itemType = Math.random() < 0.5 ? "muscle" : "knowledge";
+            items.push({ x: 550, y: getRandomPosition(), width: 20, height: 20, type: itemType });
+        }
+
+        function spawnHunter() {
+            hunters.push({
+                x: 600,
+                y: getRandomPosition(),
+                width: 40,
+                height: 40,
+                speed: 7
+            });
+        }
+
+        function moveObjects() {
+            items.forEach(item => item.x -= 7);
+            hunters.forEach(hunter => hunter.x -= hunter.speed);
+
+            items = items.filter(item => item.x > 0);
+            hunters = hunters.filter(hunter => hunter.x > 0);
+
+            if (items.length === 0) spawnItems();
+            if (hunters.length === 0) spawnHunter();
+        }
+
+        function checkCollisions() {
+            // Check if Bunny collides with items
+            items.forEach((item, index) => {
+                if (
+                    bunny.x < item.x + item.width &&
+                    bunny.x + bunny.width > item.x &&
+                    bunny.y < item.y + item.height &&
+                    bunny.y + bunny.height > item.y
+                ) {
+                    if (item.type === "muscle") {
+                        muscleScore++;
+                        muscleBar.style.width = 10 + (muscleScore * 9) + "%";
+                        muscleBar.textContent = muscleScore;
+                    } else {
+                        knowledgeScore++;
+                        knowledgeBar.style.width = 10 + (knowledgeScore * 9) + "%";
+                        knowledgeBar.textContent = knowledgeScore;
+                    }
+                    items.splice(index, 1);
+                    if (muscleScore >= 10) {
+                        showPopup("Modern Fizik Kazandı", "images/muscle.png", "TEBRİKLER! %20 İndirim kazandınız!");
+                        gameOver = true;
+                    } else if (knowledgeScore >= 10) {
+                        showPopup("Eski Çağ Fiziği Kazandı", "images/book.png", "TEBRİKLER! %20 İndirim kazandınız!");
+                        gameOver = true;
+                    }
+                }
+            });
+
+            // Check if Bunny collides with hunters
+            hunters.forEach((hunter) => {
+                if (
+                    bunny.x < hunter.x + hunter.width &&
+                    bunny.x + bunny.width > hunter.x &&
+                    bunny.y < hunter.y + hunter.height &&
+                    bunny.y + bunny.height > hunter.y
+                ) {
+                    showPopup("Odak dağıldı", "images/caught_bunny.png", "Üzgünüm! Öğrencinin odağı dağıldı ve bilgisayara bağımlı oldu!");
+                    gameOver = true;
+                }
+            });
+        }
+
+        function showPopup(title, imageSrc, messageText) {
+            popup.style.display = "block";
+            popupImage.src = imageSrc;
+            popupMessage.textContent = messageText;
+        }
+
+        function closePopup() {
+            popup.style.display = "none";
+            if (!gameOver) {
+                resetGame();
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "gray";
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(bunnyImage, bunny.x, bunny.y, 56, 64);
+
+            items.forEach(item => {
+                if (item.type === "muscle") {
+                    ctx.drawImage(carrotImage, item.x, item.y, 55, 64);
+                } else {
+                    ctx.drawImage(bookImage, item.x, item.y, 60, 64);
+                }
+            });
+
+            hunters.forEach(hunter => {
+                ctx.fillStyle = "green";
+                ctx.drawImage(hunterImage, hunter.x, hunter.y + 15, 75, 63);
+            });
+        }
+
+        let lastTime = 0;
+        function update() {
+            const now = performance.now();
+            const deltaTime = now - lastTime;
+            if (deltaTime >= 1000 / 60) {  // FPS'i 30'a sınırladık
+                lastTime = now;
+                if (!gameOver) {
+                    moveObjects();
+                    checkCollisions();
+                    draw();
+                }
+            }
+            requestAnimationFrame(update);
+        }
+
+        function moveUp() {
+            if (bunny.y > 100) bunny.y -= 100;
+        }
+
+        function moveDown() {
+            if (bunny.y < 300) bunny.y += 100;
+        }
+
+        function resetGame() {
+            muscleScore = 0;
+            knowledgeScore = 0;
+            muscleBar.style.width = "10%";
+            muscleBar.textContent = "0";
+            knowledgeBar.style.width = "10%";
+            knowledgeBar.textContent = "0";
+            bunny.y = 200;
+            items = [];
+            hunters = [];
+            gameOver = false;
+            spawnItems();
+            spawnHunter();
+            update();
+        }
+
+        spawnItems();
+        spawnHunter();
+        update();
+    </script>
+</body>
+</html>
